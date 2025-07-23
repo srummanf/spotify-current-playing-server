@@ -54,6 +54,7 @@ app.get("/np", async (req, res) => {
       song_name: track.name,
       artists: track.artists.map((artist) => artist.name).join(", "),
       album_image: track.album?.images?.[0]?.url || null,
+      album_name: track.album?.name,
       progress_ms: data.progress_ms,
       duration_ms: track.duration_ms,
       spotify_url: track.external_urls?.spotify,
