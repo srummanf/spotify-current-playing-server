@@ -2,6 +2,8 @@
 
 A Node.js Express server that fetches your currently playing track from Spotify using the Web API and returns clean, formatted data.
 
+![1753272939834](image/README/1753272939834.png)
+
 ## Features
 
 * Get currently playing track information
