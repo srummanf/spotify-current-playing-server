@@ -1,4 +1,4 @@
-# Spotify Server for `Current Playback State` 
+# Spotify Server for `Current Playback State`
 
 A Node.js Express server that fetches your currently playing track from Spotify using the Web API and returns clean, formatted data.
 
@@ -65,7 +65,7 @@ Copy the `code` parameter value from the URL
 
 #### Step 4c: Exchange Code for Refresh Token
 
-Create `getRefreshToken.js`:
+Create `refreshToken.js`:
 
 ```javascript
 require("dotenv").config();
@@ -106,7 +106,7 @@ getRefreshToken();
 Run the script:
 
 ```bash
-node getRefreshToken.js
+node refreshToken.js
 ```
 
 You will get something like:
@@ -214,6 +214,23 @@ Visit `http://localhost:3000/np` to see your current playback state.
 
 ```json
 {"error":"invalid json response body at https://api.spotify.com/v1/me/player reason: Unexpected end of JSON input"}
+```
+
+## Testing
+
+Run the script  `test-token.js` using `node test-token.js` to check whether the credentials are working or not.
+
+If the credentials are correct, you will get such a response:
+
+```json
+Status: 200
+Response: {
+  access_token: 'xxxxxxxxxxxxxxxxxxxxxxxxx',
+  token_type: 'Bearer',
+  expires_in: xxxx,
+  scope: 'user-read-playback-state user-read-currently-playing user-read-recently-played'
+}
+✅ Token is valid!
 ```
 
 ## 🔧 Configuration
