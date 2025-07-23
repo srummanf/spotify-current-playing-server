@@ -1,0 +1,261 @@
+# Spotify Server for `Current Playback State` 
+
+A Node.js Express server that fetches your currently playing track from Spotify using the Web API and returns clean, formatted data.
+
+## Features
+
+* Get currently playing track information
+* Clean JSON response with essential data
+* Automatic token refresh handling
+* Device information included
+* Progress tracking support
+
+## Prerequisites
+
+* Node.js (v14 or higher)
+* Spotify Account
+
+## 🚀 Quick Start
+
+### 1. Install Dependencies
+
+```bash
+npm init -y
+npm install express dotenv node-fetch
+```
+
+### 2. Create Spotify App
+
+1. Go to [Spotify Developer Dashboard](https://developer.spotify.com/dashboard)
+2. Click "Create App"
+3. Fill in app details:
+   * **App Name** : Your choice
+   * **App Description** : Your choice
+   * **Redirect URI** : `https://appurl.com/callback (localhost is not supported due security concerns)`
+4. Save your `Client ID` and `Client Secret`
+
+### 3. Environment Setup
+
+Create a `.env` file in your project root:
+
+```env
+SPOTIFY_CLIENT_ID=your_client_id_here
+SPOTIFY_CLIENT_SECRET=your_client_secret_here
+```
+
+### 4. Get Your Refresh Token
+
+#### Step 4a: Authorization URL
+
+Replace `<your_client_id>` with your actual Client ID and the url and visit this URL in your browser:
+
+```
+https://accounts.spotify.com/authorize?client_id=<your_client_id>&response_type=code&redirect_uri=https%3A%2F%2Fappurl.com%2Fcallback&scope=user-read-currently-playing%20user-read-playback-state
+```
+
+#### Step 4b: Get Authorization Code
+
+After authorizing, you'll be redirected to:
+
+```
+https://appurl.com/callback?code=XXXXXXXXXX
+```
+
+Copy the `code` parameter value from the URL
+
+#### Step 4c: Exchange Code for Refresh Token
+
+Create `getRefreshToken.js`:
+
+```javascript
+require("dotenv").config();
+const fetch = require("node-fetch");
+
+const getRefreshToken = async () => {
+  const clientId = process.env.SPOTIFY_CLIENT_ID;
+  const clientSecret = process.env.SPOTIFY_CLIENT_SECRET;
+  const redirectUri = "https://appurl.com/callback";
+  const code = "PASTE_YOUR_AUTH_CODE_HERE"; // Replace with your code
+
+  const authString = Buffer.from(`${clientId}:${clientSecret}`).toString("base64");
+
+  try {
+    const response = await fetch("https://accounts.spotify.com/api/token", {
+      method: "POST",
+      headers: {
+        Authorization: `Basic ${authString}`,
+        "Content-Type": "application/x-www-form-urlencoded"
+      },
+      body: new URLSearchParams({
+        grant_type: "authorization_code",
+        code,
+        redirect_uri: redirectUri
+      })
+    });
+
+    const data = await response.json();
+    console.log("Refresh Token:", data.refresh_token);
+  } catch (err) {
+    console.error("Error:", err);
+  }
+};
+
+getRefreshToken();
+```
+
+Run the script:
+
+```bash
+node getRefreshToken.js
+```
+
+You will get something like:
+
+`{   "access_token": "BQCS...",   "token_type": "Bearer",   "expires_in": 3600,   "refresh_token": "AQCS..." }`
+
+Copy the `refresh_token` value to your `.env` file as `SPOTIFY_REFRESH_TOKEN=your_refresh_token_here`
+
+## 🖥️ Server Implementation
+
+Create `server.js`:
+
+```javascript
+require("dotenv").config();
+const express = require("express");
+const fetch = require("node-fetch");
+
+const app = express();
+const PORT = process.env.PORT || 3000;
+
+const {
+  SPOTIFY_CLIENT_ID,
+  SPOTIFY_CLIENT_SECRET,
+  SPOTIFY_REFRESH_TOKEN
+} = process.env;
+
+const getAccessToken = async () => {
+  const authString = Buffer.from(`${SPOTIFY_CLIENT_ID}:${SPOTIFY_CLIENT_SECRET}`).toString("base64");
+
+  const res = await fetch("https://accounts.spotify.com/api/token", {
+    method: "POST",
+    headers: {
+      Authorization: `Basic ${authString}`,
+      "Content-Type": "application/x-www-form-urlencoded",
+    },
+    body: new URLSearchParams({
+      grant_type: "refresh_token",
+      refresh_token: SPOTIFY_REFRESH_TOKEN
+    }),
+  });
+
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error_description || "Failed to refresh token");
+
+  return data.access_token;
+};
+
+app.get("/np", async (req, res) => {
+  try {
+    const accessToken = await getAccessToken();
+
+    const response = await fetch("https://api.spotify.com/v1/me/player", {
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+      },
+    });
+
+    const data = await response.json();
+
+    if (!data || !data.item) {
+      return res.json({ playing: false, message: "Nothing is playing" });
+    }
+
+    const track = data.item;
+    const cleaned = {
+      playing: data.is_playing,
+      song_name: track.name,
+      artists: track.artists.map((artist) => artist.name).join(", "),
+      album_image: track.album?.images?.[0]?.url || null,
+      progress_ms: data.progress_ms,
+      duration_ms: track.duration_ms,
+      spotify_url: track.external_urls?.spotify,
+      device_name: data.device?.name,
+      device_type: data.device?.type,
+    };
+
+    res.json(cleaned);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.listen(PORT, () => {
+  console.log(`✅ Server running at http://localhost:${PORT}/np`);
+});
+```
+
+## 🏃‍♂️ Running the Server
+
+```bash
+node server.js
+```
+
+Visit `http://localhost:3000/np` to see your current playback state.
+
+## 📊 API Response
+
+### When Music is Playing
+
+```json
+{"playing":true,"song_name":"Buona sera ciao ciao","artists":"Italian Disco Mafia","album_image":"https://i.scdn.co/image/ab67616d0000b273ef3338fc23f2e22c71306c9f","progress_ms":150185,"duration_ms":254599,"spotify_url":"https://open.spotify.com/track/5pTh13K4WRIjOrmOxbmBXP","device_name":"Web Player (Chrome)","device_type":"Computer"}
+```
+
+### When Nothing is Playing
+
+```json
+{"error":"invalid json response body at https://api.spotify.com/v1/me/player reason: Unexpected end of JSON input"}
+```
+
+## 🔧 Configuration
+
+### Required Scopes
+
+The following Spotify scopes are required:
+
+* `user-read-currently-playing`
+* `user-read-playback-state`
+
+### Environment Variables
+
+| Variable                  | Description                              |
+| ------------------------- | ---------------------------------------- |
+| `SPOTIFY_CLIENT_ID`     | Your Spotify app's Client ID             |
+| `SPOTIFY_CLIENT_SECRET` | Your Spotify app's Client Secret         |
+| `SPOTIFY_REFRESH_TOKEN` | Long-lived token for API access          |
+| `PORT`                  | Server port (optional, defaults to 3000) |
+
+## 🚨 Common Issues
+
+#### "Nothing is playing" Response
+
+* Ensure you have Spotify Premium
+* Make sure music is actively playing (not paused)
+* Check that your app has the correct scopes
+
+#### Token Refresh Errors
+
+* Verify your Client ID and Client Secret are correct
+* Ensure your refresh token was generated with the correct redirect URI
+* Check that your Spotify app settings match your configuration
+
+#### 403 Forbidden Errors
+
+* Confirm you have Spotify Premium (required for playbook state API)
+* Verify the required scopes are included in your authorization
+
+## Resources
+
+* [Spotify For Developers](https://developer.spotify.com/)
+* [Spotify Web API Documentation](https://developer.spotify.com/documentation/web-api/)
+* [Spotify Authorization Guide](https://developer.spotify.com/documentation/general/guides/authorization/)
+* [Get Current Playback State Endpoint](https://developer.spotify.com/documentation/web-api/reference/get-information-about-the-users-current-playback)
