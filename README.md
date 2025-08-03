@@ -95,13 +95,13 @@ Visit `http://localhost:3000/np` to see your current playback state.
 
 ## 📊 API Response
 
-### When Music is Playing
+### When Music is Playing/Not Playing
 
 ```json
 {"playing":true,"song_name":"Buona sera ciao ciao","artists":"Italian Disco Mafia","album_image":"https://i.scdn.co/image/ab67616d0000b273ef3338fc23f2e22c71306c9f","progress_ms":150185,"duration_ms":254599,"spotify_url":"https://open.spotify.com/track/5pTh13K4WRIjOrmOxbmBXP","device_name":"Web Player (Chrome)","device_type":"Computer"}
 ```
 
-### When Nothing is Playing
+### When Server goes to Idle State
 
 ```json
 {"error":"invalid json response body at https://api.spotify.com/v1/me/player reason: Unexpected end of JSON input"}
@@ -113,7 +113,7 @@ Run the script  `test-token.js` using `node test-token.js` to check whether the 
 
 If the credentials are correct, you will get such a response:
 
-```json
+```
 Status: 200
 Response: {
   access_token: 'xxxxxxxxxxxxxxxxxxxxxxxxx',
